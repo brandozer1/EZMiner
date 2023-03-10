@@ -1,0 +1,400 @@
+os.loadAPI("EZMiner/nav.lua")
+newposX, newposY, newposZ, newposDir, newtunneldir, newtunneldepth, newtunnellength, newtunnelamount, newtunnelgap, newoffX, newoffZ, newreturnY = ...
+--CONFIG
+GARBAGE = {"minecraft:dirt", "minecraft:cobblestone", "minecraft:gravel", "minecraft:stone", "minecraft:flint"}
+
+function findPos()
+    print("Enter position below")
+    print("Turtle X:")
+    local x = read();
+    print("Turtle Y:")
+    local y = read();
+    print("Turtle Z:")
+    local z = read();
+    print("Turtle Direction (N, E, S, W")
+    nav.SetPosition(x, y, z, nav.GetDirectionINT(read()))
+    print("Position Set, Beginning...");
+end
+
+
+
+
+if newreturnY == nil then
+  print("New location? 1 or 0")
+  if tonumber(read()) == 0 then
+      if nav.InitializeNavigator() then
+        print("Position data found, Beginning...")
+      else
+        findPos()
+      end
+  else
+      findPos()
+  end
+  else
+    posX = tonumber(newposX)
+    posY = tonumber(newposY)
+    posZ = tonumber(newposZ)
+    posDir = newposDir
+    tunneldir = nav.GetDirectionINT(newtunneldir)
+    tunneldepth = tonumber(newtunneldepth)
+    tunnellength = tonumber(newtunnellength)
+    tunnelamount = tonumber(newtunnelamount)
+    tunnelgap = tonumber(newtunnelgap)
+    offsetX = tonumber(newoffX)
+    offsetZ = tonumber(newoffZ)
+    returnY = tonumber(newreturnY)+1
+    nav.InitializeNavigator()
+    nav.SetPosition(posX, posY, posZ, nav.GetDirectionINT(posDir))
+    local tx, ty, tz, tdir = nav.GetPosition()
+end
+
+initX, initY, initZ, initDir = nav.GetPosition()
+print(initX .. ", " .. initY .. ", " .. initZ)
+
+function incdir(cdir, amount)
+  local newdir = cdir
+  for i=amount-1, 0, -1 do
+    if newdir == 3 then
+      newdir = 0
+    else
+      newdir = newdir + 1
+    end
+  end
+  return newdir
+end
+
+function oreCheck()
+  local success, blockData = turtle.inspect()
+  local successUp, blockDataUp = turtle.inspectUp()
+  local successDown, blockDataDown = turtle.inspectDown()
+  if success and blockData.name:find("ore") then
+    shell.run("EZMiner/vMiner")
+  end
+  if successUp and blockDataUp.name:find("ore") then
+    if nav.Back() == false then
+      nav.TurnLeft()
+      nav.TurnLeft()
+      turtle.dig()
+      nav.TurnLeft()
+      nav.TurnLeft()
+      nav.Back()
+    end
+    if nav.Up() == false then
+      turtle.digUp()
+      nav.Up()
+    end
+    shell.run("EZMiner/vMiner")
+    nav.Down()
+    if nav.Forward() == false then
+      turtle.dig()
+      nav.Forward()
+    end
+  end
+  if successDown and blockDataDown.name:find("ore") then
+    if nav.Back() == false then
+      nav.TurnLeft()
+      nav.TurnLeft()
+      turtle.dig()
+      nav.TurnLeft()
+      nav.TurnLeft()
+      nav.Back()
+    end
+    if nav.Down() == false then
+      turtle.digDown()
+      nav.Down()
+    end
+    shell.run("EZMiner/vMiner")
+    nav.Up()
+    if nav.Forward() == false then
+      turtle.dig()
+      nav.Forward()
+    end
+  end
+end
+
+function smartMine(checkOre, oDir, noDig)
+  if noDig ~= true then
+      if nav.Forward() == false then
+        turtle.dig()
+        nav.Forward()
+      end
+  end
+  if checkOre then
+      oreCheck()
+      nav.TurnLeft(incdir(oDir, 3))
+      oreCheck()
+      nav.TurnRight(incdir(oDir, 1))
+      oreCheck()
+      nav.TurnLeft(odir)
+  end
+  if noDig ~= true then
+    turtle.digUp()
+  else
+    if nav.Forward() == false then
+        turtle.dig()
+        nav.Forward()
+      end
+  end
+end
+
+function setupMine(tunneldepth, tunneldir)
+  local tox, toy, toz, todir = nav.GetPosition()
+  if offsetX and offsetZ then
+    nav.Up()
+    local newx = tox+offsetX
+    local newz = toz+offsetZ
+    while tox > newx do
+      nav.TurnRight(nav.GetDirectionINT("w"))
+      smartMine()
+      tox, toy, toz, todir = nav.GetPosition()
+    end
+    while tox < newx do
+      nav.TurnRight(nav.GetDirectionINT("e"))
+      smartMine()
+      tox, toy, toz, todir = nav.GetPosition()
+    end
+
+    while toz > newz do
+      nav.TurnRight(nav.GetDirectionINT("n"))
+      smartMine()
+      tox, toy, toz, todir = nav.GetPosition()
+    end
+    while toz < newz do
+      nav.TurnRight(nav.GetDirectionINT("s"))
+      smartMine()
+      tox, toy, toz, todir = nav.GetPosition()
+    end
+    tox, toy, toz, todir = nav.GetPosition()
+  end
+  nav.TurnRight(tunneldir)
+  while toy > tunneldepth do
+    if nav.Down() == false then
+      turtle.digDown()
+    end
+    tox, toy, toz, todir = nav.GetPosition()
+  end
+end
+
+function fuelScan(vital)
+  local slot = 1
+  while slot <= 16 do
+
+    local item = turtle.getItemDetail(slot)
+    turtle.select(slot)
+    if item and turtle.refuel(0) then
+      local count = turtle.getItemCount(slot)
+      turtle.refuel(count)
+      print("New Fuel Level: " .. turtle.getFuelLevel())
+      return true
+    end
+  slot = slot + 1
+  end
+  if vital then
+      error("Cannot continue without fuel in the inventory")
+  else
+      print("No available fuel in inventory")
+  end
+  return false
+end
+
+if turtle.getFuelLevel() == 0 then
+    fuelScan(true)
+end
+
+function dumpInv()
+  for slot = 1, 16 do
+    local itemDetail = turtle.getItemDetail(slot)
+    if itemDetail ~= nul then
+      for _, item in ipairs(GARBAGE) do
+        if itemDetail.name == item then
+          turtle.select(slot)
+          turtle.drop()
+          break
+        end
+      end
+    end
+  end
+end
+
+
+function mine(length)
+  local tx, ty, tz, tdir = nav.GetPosition()
+  local initX = tx
+  local initZ = tz
+  local oDir = tdir
+  oreCheck()
+
+  if tdir == nav.GetDirectionINT("west") then
+    while tx > initX-length do
+      smartMine(true, oDir)
+      tx, ty, tz, tdir = nav.GetPosition()
+    end
+    nav.Up()
+    oreCheck()
+    nav.TurnRight(nav.GetDirectionINT("east"))
+    while tx < initX do
+        smartMine(true, incdir(oDir, 2), true)
+      tx, ty, tz, tdir = nav.GetPosition()
+    end
+    nav.TurnRight(nav.GetDirectionINT("west"))
+    nav.Down()
+  end
+  tx, ty, tz, tdir = nav.GetPosition()
+
+  if tdir == nav.GetDirectionINT("south") then
+    while tz < length+initZ do
+      smartMine(true, oDir)
+      tx, ty, tz, tdir = nav.GetPosition()
+    end
+    nav.Up()
+    oreCheck()
+    nav.TurnRight(nav.GetDirectionINT("north"))
+    while tz > initZ do
+        smartMine(true, incdir(oDir, 2), true)
+    tx, ty, tz, tdir = nav.GetPosition()
+    end
+    nav.TurnRight(nav.GetDirectionINT("south"))
+    nav.Down()
+  end
+  tx, ty, tz, tdir = nav.GetPosition()
+
+  if tdir == nav.GetDirectionINT("east") then
+    while tx < length+initX do
+      smartMine(true, oDir)
+      tx, ty, tz, tdir = nav.GetPosition()
+    end
+    nav.Up()
+    oreCheck()
+    nav.TurnRight(nav.GetDirectionINT("west"))
+    while tx > initX do
+      smartMine(true, incdir(oDir, 2), true)
+      tx, ty, tz, tdir = nav.GetPosition()
+    end
+    nav.TurnRight(nav.GetDirectionINT("east"))
+    nav.Down()
+  end
+  tx, ty, tz, tdir = nav.GetPosition()
+
+  if tdir == nav.GetDirectionINT("north") then
+    while tz > initZ-length do
+      smartMine(true, oDir)
+      tx, ty, tz, tdir = nav.GetPosition()
+    end
+    nav.Up()
+    oreCheck()
+    nav.TurnRight(nav.GetDirectionINT("south"))
+    while tz < initZ do
+      smartMine(true, incdir(oDir, 2), true)
+      tx, ty, tz, tdir = nav.GetPosition()
+    end
+    nav.TurnRight(nav.GetDirectionINT("north"))
+    nav.Down()
+  end
+  tx, ty, tz, tdir = nav.GetPosition()
+
+  dumpInv()
+end
+
+
+
+function endMine()
+  local tx, ty, tz, tdir = nav.GetPosition()
+  local initDir = tdir
+  while ty < initY+returnY do
+      if nav.Up() == false then
+        turtle.digUp()
+        nav.Up()
+      end
+      oreCheck()
+      nav.TurnLeft(incdir(initDir, 3))
+      oreCheck()
+      nav.TurnLeft(incdir(initDir, 2))
+      oreCheck()
+      nav.TurnLeft(incdir(initDir, 1))
+      oreCheck()
+      nav.TurnLeft(initDir)
+    tx, ty, tz, tdir = nav.GetPosition()
+  end
+  local newx = tx-offsetX
+  local newz = tz-offsetZ
+  while tx > newx do
+    nav.TurnRight(nav.GetDirectionINT("w"))
+    smartMine()
+    tx, ty, tz, tdir = nav.GetPosition()
+  end
+  while tx < newx do
+    nav.TurnRight(nav.GetDirectionINT("e"))
+    smartMine()
+    tx, ty, tz, tdir = nav.GetPosition()
+  end
+
+  while tz > newz do
+    nav.TurnRight(nav.GetDirectionINT("n"))
+    smartMine()
+    tx, ty, tz, tdir = nav.GetPosition()
+  end
+  while tz < newz do
+    nav.TurnRight(nav.GetDirectionINT("s"))
+    smartMine()
+    tx, ty, tz, tdir = nav.GetPosition()
+  end
+  tx, ty, tz, tdir = nav.GetPosition()
+  nav.TurnRight(initDir)
+  while ty > initY do
+    if turtle.detectDown() then
+      local success, block = turtle.inspectDown()
+      if success and not string.find(block.name, "turtle") then
+        turtle.digDown()
+      end
+    else
+      nav.Down()
+      tx, ty, tz, tdir = nav.GetPosition()
+    end
+  end
+end
+
+function branchMine(amount, gap, tunnellength)
+  local tx, ty, tz, tdir = nav.GetPosition()
+  local oDir = tdir
+  mine(tunnellength)
+  for i=amount, 2, -1 do
+    nav.TurnRight(incdir(oDir, 1))
+      for i=gap, 0, -1 do
+        smartMine(true, incdir(oDir, 1))
+        tx, ty, tz, tdir = nav.GetPosition()
+      end
+      nav.TurnLeft(oDir)
+      mine(tunnellength)
+  end
+  nav.Up()
+  nav.TurnRight(incdir(oDir, 1))
+  oreCheck()
+  nav.TurnLeft(incdir(oDir, 3))
+  tx, ty, tz, tdir = nav.GetPosition()
+  for i=(gap+1)*(amount-1), 1, -1 do
+    smartMine(true, incdir(oDir, 3), true)
+  end
+  nav.TurnRight(oDir)
+  nav.Down()
+  tx, ty, tz, tdir = nav.GetPosition()
+
+end
+
+if newreturnY == nil then
+  print("EZMine <posX> <posY> <posZ> <posDir> <tunnelDir> <tunnelDepth> <tunnelLength> <tunnelAmount> <tunnelGap>")
+  print("What direction would you like to dig?")
+  tunneldir = nav.GetDirectionINT(read())
+  print("What depth would you like to strip at?")
+  tunneldepth = tonumber(read())
+  print("How long would you like the tunnel to be?")
+  tunnellength = tonumber(read())
+  print("How many tunnels?")
+  tunnelamount = tonumber(read())
+  print("How far apart do you want the strips?")
+  tunnelgap = tonumber(read())
+end
+setupMine(tunneldepth, tunneldir)
+branchMine(tunnelamount, tunnelgap, tunnellength)
+dumpInv()
+endMine()
+

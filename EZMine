@@ -30,6 +30,7 @@ if newreturnY == nil then
   else
       findPos()
   end
+  returnY = 0
   else
     posX = tonumber(newposX)
     posY = tonumber(newposY)

@@ -69,7 +69,7 @@ function oreCheck()
   local successUp, blockDataUp = turtle.inspectUp()
   local successDown, blockDataDown = turtle.inspectDown()
   if success and blockData.name:find("ore") then
-    shell.run("EZMiner/vMiner")
+    shell.run("vMiner")
   end
   if successUp and blockDataUp.name:find("ore") then
     if nav.Back() == false then
@@ -84,7 +84,7 @@ function oreCheck()
       turtle.digUp()
       nav.Up()
     end
-    shell.run("EZMiner/vMiner")
+    shell.run("vMiner")
     nav.Down()
     if nav.Forward() == false then
       turtle.dig()
@@ -104,7 +104,7 @@ function oreCheck()
       turtle.digDown()
       nav.Down()
     end
-    shell.run("EZMiner/vMiner")
+    shell.run("vMiner")
     nav.Up()
     if nav.Forward() == false then
       turtle.dig()

@@ -69,7 +69,7 @@ function oreCheck()
   local successUp, blockDataUp = turtle.inspectUp()
   local successDown, blockDataDown = turtle.inspectDown()
   if success and blockData.name:find("ore") then
-    shell.run("vMiner")
+    shell.run("EZMiner/vMiner")
   end
   if successUp and blockDataUp.name:find("ore") then
     if nav.Back() == false then
@@ -84,7 +84,7 @@ function oreCheck()
       turtle.digUp()
       nav.Up()
     end
-    shell.run("vMiner")
+    shell.run("EZMiner/vMiner")
     nav.Down()
     if nav.Forward() == false then
       turtle.dig()
@@ -104,7 +104,7 @@ function oreCheck()
       turtle.digDown()
       nav.Down()
     end
-    shell.run("vMiner")
+    shell.run("EZMiner/vMiner")
     nav.Up()
     if nav.Forward() == false then
       turtle.dig()
@@ -141,7 +141,9 @@ end
 function setupMine(tunneldepth, tunneldir)
   local tox, toy, toz, todir = nav.GetPosition()
   if offsetX and offsetZ then
-    nav.Up()
+    if returnY > 1 then
+      nav.Up()
+    end
     local newx = tox+offsetX
     local newz = toz+offsetZ
     while tox > newx do
@@ -316,6 +318,7 @@ function endMine()
       nav.TurnLeft(initDir)
     tx, ty, tz, tdir = nav.GetPosition()
   end
+  dumpInv()
   local newx = tx-offsetX
   local newz = tz-offsetZ
   while tx > newx do
@@ -366,6 +369,14 @@ function branchMine(amount, gap, tunnellength)
       end
       nav.TurnLeft(oDir)
       mine(tunnellength)
+      if turtle.getFuelLevel() < 260 then
+        for i=0, 16, 1 do
+          turtle.select(i)
+          if turtle.getItemCount(i) > 0 and turtle.refuel(0) then
+            turtle.refuel(2)
+          end
+        end
+      end
   end
   nav.Up()
   nav.TurnRight(incdir(oDir, 1))
@@ -398,4 +409,6 @@ setupMine(tunneldepth, tunneldir)
 branchMine(tunnelamount, tunnelgap, tunnellength)
 dumpInv()
 endMine()
+
+
 

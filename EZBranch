@@ -1,0 +1,258 @@
+os.loadAPI("EZMiner/nav.lua")
+
+
+function searchDrive()
+    turtle.select(1)
+    for i=1, 16, 1 do
+        turtle.select(i)
+        if turtle.getItemDetail(i) then
+            if turtle.getItemDetail(i).name == "computercraft:peripheral" then
+                return i
+            end
+        end
+    end
+    return false
+end
+
+function checkBots(x, y)
+    local need = x * y
+    local amount = 0
+    turtle.select(1)
+    for i=1, 16, 1 do
+        turtle.select(i)
+        if turtle.getItemDetail(i) then
+            if string.find(turtle.getItemDetail(i).name, "turtle") then
+                turtleSlot = i
+                amount = amount + (1 * turtle.getItemDetail(i).count)
+            end
+        end
+    end
+    if amount < need then
+        return false
+    else
+        return true
+    end
+end
+
+function calcFuel(x, y)
+    if x == nil then
+        x = 0
+    end
+    if y == nil then
+        y = 0
+    end
+
+    fuelAmount = (((2*(posY-newdepth)+2*(newbranchamount*newbranchlength))+2*((newbranchamount*newbranchgap)-newbranchgap)+2*newbranchamount+(2*x)+(2*y))*2)+160
+    return fuelAmount
+end
+
+function loadDisk()
+    branch = {}
+    Bots = {}
+    polarX = 1
+    polarY = 1
+    if nav.GetDirectionINT(newbranchdir) == 0 then
+        polarX = -1
+        polarY = 1
+    end
+    if nav.GetDirectionINT(newbranchdir) == 1 then
+        polarX = -1
+        polarY = -1
+    end
+    if nav.GetDirectionINT(newbranchdir) == 2 then
+        polarX = 1
+        polarY = -1
+    end
+    for i=0, newbotx-1, 1 do
+        local botTable = {}
+
+
+        for l=0, newboty-1, 1 do
+                botTable.offsetY = polarY*((newbranchgap+1)*newbranchamount)*i
+                botTable.offsetX = polarX*(newbranchlength+1)*l
+            if nav.GetDirectionINT(newbranchdir) == 0 then
+                botTable.offsetY = polarY*(newbranchlength+1)*l
+                botTable.offsetX = polarX*((newbranchgap+1)*newbranchamount)*i
+            end
+            if nav.GetDirectionINT(newbranchdir) == 1 then
+                botTable.offsetY = polarY*((newbranchgap+1)*newbranchamount)*i
+                botTable.offsetX = polarX*(newbranchlength+1)*l
+            end
+            if nav.GetDirectionINT(newbranchdir) == 2 then
+                botTable.offsetY = polarY*(newbranchlength+1)*l
+                botTable.offsetX = polarX*((newbranchgap+1)*newbranchamount)*i
+            end
+
+
+            botTable.coal = calcFuel(botTable.offsetX/polarX, botTable.offsetY/polarY)
+            table.insert(Bots, textutils.serialize(botTable))
+        end
+    end
+
+
+    branch.posX = posX
+    branch.posY = posY
+    branch.posZ = posZ
+    branch.posDir = posDir
+    branch.branchDir = newbranchdir
+    branch.depth = newdepth
+    branch.branchLength = newbranchlength
+    branch.branchAmount = newbranchamount
+    branch.branchGap = newbranchgap
+    branch.currentbot = 1
+
+    if posX and posY and posZ and posDir then
+        local branchData = textutils.serialize(branch)
+        botData = textutils.serialize(Bots)
+        local handle = assert(fs.open("EZMiner/branchData", "w"), "Couldn't save branch data")
+        handle.write(branchData)
+        handle.close()
+        local handle = assert(fs.open("EZMiner/botData", "w"), "Couldn't save bot data")
+        handle.write(botData)
+        handle.close()
+    end
+
+
+
+    shell.run("copy EZMiner/ disk/")
+    shell.run("move disk/EZMiner/BranchBotLoader.lua disk/")
+    shell.run("rename disk/BranchBotLoader.lua disk/startup.lua")
+end
+
+function fuelScan(vital)
+  local slot = 1
+  while slot <= 16 do
+
+    local item = turtle.getItemDetail(slot)
+    turtle.select(slot)
+    if item and turtle.refuel(0) then
+      turtle.refuel(3)
+      print("New Fuel Level: " .. turtle.getFuelLevel())
+      return true
+    end
+  slot = slot + 1
+  end
+  if vital then
+      error("Cannot continue without fuel in the inventory. A small amount will do this turtle moves very little.")
+  else
+      print("No available fuel in inventory. A small amount will do this turtle moves very little.")
+  end
+  return false
+end
+
+if turtle.getFuelLevel() == 0 then
+    fuelScan(true)
+end
+
+function searchDisk()
+    turtle.select(1)
+    for i=1, 16, 1 do
+        turtle.select(i)
+        if turtle.getItemDetail(i) then
+            if string.find(turtle.getItemDetail(i).name,"disk") then
+                return i
+            end
+        end
+    end
+    return false
+end
+
+function setupBranch()
+    turtle.turnLeft()
+end
+
+driveSlot = searchDrive()
+diskSlot = searchDisk()
+fuelScan()
+
+
+
+
+if driveSlot and diskSlot then
+    print("What is the X of this turtle?")
+    posX = tonumber(read())
+    print("What is the Y of this turtle?")
+    posY = tonumber(read())
+    print("What is the Z of this turtle?")
+    posZ = tonumber(read())
+    print("What is the Direction of this turtle? (N, E, S, W)")
+    posDir = read()
+    print("What direction do you want to mine in? (N, E, S, W)")
+    print("Tunnels are mined to the right of this direction and all the branches split in the same direction as this from the tunnels")
+    newbranchdir = read()
+    print("What depth would you like the turtle(s) to strip? (Y co-ordinate)")
+    newdepth = tonumber(read())
+    print("How long do you want the branches to be?")
+    newbranchlength = tonumber(read())
+    print("How many branches would you like there to be per main tunnel/turtle?")
+    newbranchamount = tonumber(read())
+    print("How far apart do you want the branches to be? (Blocks between branches)")
+    newbranchgap = tonumber(read())
+    print("How many turtle sections wide?")
+    newbotx = tonumber(read())
+    print("How many turtle sections long?")
+    newboty = tonumber(read())
+
+
+
+    if checkBots(newbotx, newboty) then
+        print("Turtles found!")
+    else
+        error("No mining turtles available! you need atleast " .. newbotx*newboty .. " to complete this task!")
+    end
+
+    print("Disk and drive found!")
+    turtle.turnLeft()
+    turtle.select(driveSlot)
+    turtle.place()
+    turtle.select(diskSlot)
+    turtle.drop()
+    loadDisk()
+    turtle.turnRight()
+    turtle.back()
+    local turtleIterator = 0
+    while turtleIterator < newbotx*newboty do
+        turtle.select(turtleSlot)
+        if turtle.place() then
+            turtleIterator = turtleIterator + 1
+            peripheral.call("front","turnOn")
+            for key, value in pairs(Bots) do
+                if key == turtleIterator then
+                    botinfo = textutils.unserialize(value)
+                    local coal = botinfo.coal/80
+                    local droppedCoal = 0
+                    while droppedCoal < coal do
+                        for i=1, 16, 1 do
+                            turtle.select(i)
+                            if turtle.refuel(0) then
+                                while coal-droppedCoal >= 0 and turtle.getItemCount() > 0 do
+                                    turtle.drop(1)
+                                    droppedCoal = droppedCoal + 1
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+    end
+    print("TEST")
+    sleep(10)
+
+    while true do
+        if turtle.detect() then
+            turtle.dig()
+        end
+    end
+else
+    error("You cannot branch mine without putting a disk and a disk drive into the inventory!")
+end
+
+
+
+
+
+
+
+
